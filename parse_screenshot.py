@@ -140,11 +140,3 @@ def create_icons(im, px, cols, lines):
             # print("generated", x, y)
             crop = im.crop(box)
             crop.save("arch_icons/" + str(x) + str(y) + ".png", "png")
-
-def main():
-    im = Image.open("arch.png")
-    px=im.load()
-    cols, lines = get_grid_coords(im, px)
-    create_icons(im, px, cols, lines)
-
-main()

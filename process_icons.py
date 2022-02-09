@@ -1,5 +1,6 @@
 from PIL import Image
 import collections
+from parse_screenshot import get_grid_coords, create_icons
 
 _TEMPLATE_HTML_PAGE = """<!doctype html>
 <html lang="en">
@@ -280,6 +281,11 @@ def build_and_write_html_result(catalogue):
     return content
 
 def main():
+    im = Image.open("arch.png")
+    px=im.load()
+    cols, lines = get_grid_coords(im, px)
+    create_icons(im, px, cols, lines)
+
     refs_values = process_refs_values()
     catalogue = build_catalogue(refs_values)
     content = build_and_write_html_result(catalogue)
