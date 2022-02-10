@@ -1,5 +1,10 @@
 from PIL import Image
 
+def px_stddev(px1, px2):
+    r1,g1,b1, _ = px1
+    r2,g2,b2, _ = px2
+    return (r1-r2)**2 + (g1-g2)**2 + (b1-b2)**2
+
 # standard deviation from empirical average color of the left side of columns on my client
 def border_stddev_left(px):
     r,g,b, _ = px
@@ -65,8 +70,68 @@ def search_y(im, px):
     # print(candidates1, candidates2)
     return candidates1[0], candidates2[-1]
 
+def get_dispersion_col(avg, px, x):
+    # print(sorted([px_stddev(avg, px[x, y + 100]) for y in range(300)])[-3:])
+    return int(sum(sorted([px_stddev(avg, px[x, y + 100]) for y in range(300)])[-1:]))
+
+def search_x_expe(im, px):
+    columns_dispersions = []
+    picked = []
+    for x in range(im.size[0]):
+        rs, gs, bs = [],[],[]
+        for y in range(300):
+            y_cursor = y + 100
+            rs.append(px[x, y_cursor][0])
+            gs.append(px[x, y_cursor][1])
+            bs.append(px[x, y_cursor][2])
+        avg = (sum(r for r in rs)/len(rs), sum(r for r in gs)/len(gs), sum(r for r in bs)/len(bs), 0)
+        columns_dispersions.append(get_dispersion_col(avg, px, x))
+    for index, col in enumerate(columns_dispersions):
+        if col < 400 and col > 100:
+            print(index, col)
+            picked.append(index)
+    clean_picked = []
+    print(picked)
+    for i,p in enumerate(picked):
+        if i == len(picked)-1:
+            clean_picked.append(p)
+        elif p+1 != picked[i+1]:
+            clean_picked.append(p)
+    print(clean_picked)
+    return clean_picked
+
+def get_dispersion_lin(avg, px, y):
+    # print(sorted([px_stddev(avg, px[x, y + 100]) for y in range(300)])[-3:])
+    return int(sum(sorted([px_stddev(avg, px[x+100, y]) for x in range(300)])[-1:]))
+
+def search_y_expe(im, px):
+    lines_dispersions = []
+    picked = []
+    for y in range(im.size[1]):
+        rs, gs, bs = [],[],[]
+        for x in range(300):
+            x_cursor = x + 100
+            rs.append(px[x_cursor, y][0])
+            gs.append(px[x_cursor, y][1])
+            bs.append(px[x_cursor, y][2])
+        avg = (sum(r for r in rs)/len(rs), sum(r for r in gs)/len(gs), sum(r for r in bs)/len(bs), 0)
+        lines_dispersions.append(get_dispersion_lin(avg, px, y))
+    for index, lin in enumerate(lines_dispersions):
+        if lin < 1000 and lin > 100:
+            print(index, lin)
+            picked.append(index)
+    clean_picked = []
+    for i,p in enumerate(picked):
+        if i == len(picked)-1:
+            clean_picked.append(p)
+        elif p+1 != picked[i+1]:
+            clean_picked.append(p)
+    print(clean_picked)
+    return clean_picked
+
 def get_grid_coords(im, px):
-    
+    search_x_expe(im, px)
+    search_y_expe(im, px)
     baseX, endX = search_x(im, px)
     baseY, endY = search_y(im, px)
 
