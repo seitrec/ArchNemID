@@ -15,12 +15,24 @@ _TEMPLATE_HTML_PAGE = """<!doctype html>
     <title>ArchNem Organs</title>
   </head>
   <body>
-  <div class="col"></div>
-    <div class="col-10">
-      %s
+    <div class="row">
+        <div class="col-10 offset-1">
+        %s
+        </div>
     </div>
-    <div class="col"></div>
-
+    <br/>
+    <div class="row">
+        <div class="col-1"></div>
+        <div class="col-7">
+          <h3>CRAFTS</h2>
+          %s
+        </div>
+        <div class="col-3">
+          <h3>BIG TICKET TREE</h2>
+          %s
+        </div>
+        <div class="col"></div>
+    </div>
     <!-- Optional JavaScript -->
     <!-- jQuery first, then Popper.js, then Bootstrap JS -->
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
@@ -29,12 +41,27 @@ _TEMPLATE_HTML_PAGE = """<!doctype html>
   </body>
 </html>"""
 
+_TEMPLATE_HTML_INVENTORY = """
+<h3>DROPPABLE STUFF</h3>
+%s
+<br/><br/>
+<h3>CRAFTED STUFF</h3>
+%s
+"""
 _TEMPLATE_HTML_OWNED = """
 <span class="badge badge-info">%d %s</span>
 """
 
 _TEMPLATE_HTML_NOT_OWNED = """
 <span class="badge badge-danger">%d %s</span>
+"""
+
+_TEMPLATE_HTML_CRAFTABLE = """
+%s <span class="badge badge-success">%s</span>
+"""
+
+_TEMPLATE_HTML_NOT_CRAFTABLE = """
+%s <span class="badge badge-warning">%s</span>
 """
 
 _TEMPLATE_HTML_CUSTOM_COLOR = """
@@ -48,18 +75,43 @@ _TEMPLATE_HTML_RECIPE_OK = """
 """
 
 _TEMPLATE_HTML_RECIPE_KO = """
-<div class="alert alert-danger" role="alert">
+<div class="alert alert-warning" role="alert">
   %s: %s
 </div>
 """
 
 _TEMPLATE_HTML_SIMPLE_COUNT_SOME = """
-<span class="badge rounded-pill bg-success" style="color:#FFFFFF">%d</span>
+<span class="badge rounded-pill bg-info" style="color:#FFFFFF">%d</span>
 """
 
 _TEMPLATE_HTML_SIMPLE_COUNT_NONE = """
 <span class="badge rounded-pill bg-danger" style="color:#FFFFFF">%d</span>
 """
+
+_TEMPLATE_HTML_TREE_BASE = """
+<div>
+%s
+</div>
+"""
+
+_TEMPLATE_HTML_TREE_NODE = """
+    %s - %s <br/>
+    %s
+"""
+
+CONST_BIG_TICKET_ORGANS = [
+"Treant Horde",
+"Shakari-touched",
+"Brine King-touched",
+"Tukohama-touched",
+"Innocence-touched",
+"Kitava-touched"
+"Lunaris-touched",
+"Solaris-touched",
+"Arakaali-touched",
+"Abberath-touched",
+]
+
 
 CONST_COMPONENTS = {
         "Toxic": ["Toxic"],
@@ -204,7 +256,7 @@ def run_query(query, refs_values):
         if dist < best_dist:
             best_dist = dist
             best_idx = ref_name
-        # print(f"Distance to ref {ref_name}: {dist}")
+            # print(f"Distance to ref {ref_name}: {dist}")
 
 
     # print(f"Final solution : {best_idx}")
@@ -213,7 +265,7 @@ def run_query(query, refs_values):
 # the catalogue is a counter of what we have
 def build_catalogue(refs_values):
     catalogue = collections.Counter()
-    debug_grid = []
+    debug_grid = [[],[],[],[],[],[],[],[]]
     for x in range(8):
         debug_line = []
         for y in range(8):
@@ -227,31 +279,59 @@ def build_catalogue(refs_values):
                     catalogue[organ] += 1
             except FileNotFoundError:
                 print("ERROR GRID ELEMENT NOT FOUND")
-        debug_grid.append(debug_line)
+        for z in range(8):
+            debug_grid[z].append(debug_line[z])
 
     return catalogue, debug_grid
+
+def build_organ_specific_subtree(organ, catalogue, offset):
+    if organ in CONST_RECIPES:
+        if catalogue[organ] > 0:
+            badge = _TEMPLATE_HTML_SIMPLE_COUNT_SOME % catalogue[organ]
+        else:
+            badge = _TEMPLATE_HTML_SIMPLE_COUNT_NONE % catalogue[organ]
+
+        if set(CONST_RECIPES[organ]).issubset(set(catalogue.keys())):
+            display_organ = _TEMPLATE_HTML_CRAFTABLE % (badge, organ)
+        else:
+            display_organ = _TEMPLATE_HTML_NOT_CRAFTABLE % (badge, organ)
+    else:
+        if organ in catalogue:
+            display_organ = _TEMPLATE_HTML_OWNED % (catalogue[organ], organ)
+        else:
+            display_organ = _TEMPLATE_HTML_NOT_OWNED % (0, organ)
+    
+    if organ not in CONST_RECIPES:
+        return _TEMPLATE_HTML_TREE_NODE % (offset*"&nbsp;"*10, display_organ, "")
+    subs = ""
+    for sub_organ in CONST_RECIPES[organ]:
+        subs += build_organ_specific_subtree(sub_organ, catalogue, offset+1)
+    
+
+    return _TEMPLATE_HTML_TREE_NODE % (offset*"&nbsp;"*10, display_organ, subs)
 
 def build_and_write_html_result(catalogue):
     # for name, recipe in CONST_RECIPES.items():
     #     if set(recipe).issubset(set(catalogue.keys())):
     #         print(name)
 
-    content = "<h3>DROPPABLE STUFF</h2>"
+    droppable = ""
     for name in (CONST_COMPONENTS):
         if name in catalogue:
-            content += _TEMPLATE_HTML_OWNED % (catalogue[name], name)
+            droppable += _TEMPLATE_HTML_OWNED % (catalogue[name], name)
         else:
-            content += _TEMPLATE_HTML_NOT_OWNED % (0, name)
+            droppable += _TEMPLATE_HTML_NOT_OWNED % (0, name)
 
-    content+= "<br/><br/><h3>CRAFTED STUFF</h2>"
+
+    crafted = ""
     for name in (CONST_RECIPES):
         if name in catalogue:
-            content += _TEMPLATE_HTML_OWNED % (catalogue[name], name)
+            crafted += _TEMPLATE_HTML_OWNED % (catalogue[name], name)
         else:
-            content += _TEMPLATE_HTML_NOT_OWNED % (0, name)
+            crafted += _TEMPLATE_HTML_NOT_OWNED % (0, name)
 
+    inventory = _TEMPLATE_HTML_INVENTORY % (droppable, crafted)
 
-    content += "<br/><br/><h3>CRAFTS</h2>"
     recipesHTML = ""
     for crafted, recipe in CONST_RECIPES.items():
         compos = ""
@@ -266,21 +346,21 @@ def build_and_write_html_result(catalogue):
             if crafted in sub_recipe:
                 products += _TEMPLATE_HTML_CUSTOM_COLOR % (CONST_TIER_COLORS[CONST_RECIPES_TIERS[name]],catalogue[name], name)
 
-        count = catalogue[crafted]
         line = ""
-        if count > 0:
-            line = _TEMPLATE_HTML_SIMPLE_COUNT_SOME % count + crafted
+        if catalogue[crafted] > 0:
+            line = _TEMPLATE_HTML_SIMPLE_COUNT_SOME % catalogue[crafted] + crafted
         else:
-            line = _TEMPLATE_HTML_SIMPLE_COUNT_NONE % count + crafted
+            line = _TEMPLATE_HTML_SIMPLE_COUNT_NONE % catalogue[crafted] + crafted
         if set(recipe).issubset(set(catalogue.keys())):
             recipesHTML = _TEMPLATE_HTML_RECIPE_OK % (line, compos + " | " + products) + recipesHTML
         else:
 
             recipesHTML = recipesHTML + _TEMPLATE_HTML_RECIPE_KO % (line, compos + " | " + products)
 
-    content += recipesHTML
-
-    content = _TEMPLATE_HTML_PAGE % content
+    tree = ""
+    for organ in CONST_BIG_TICKET_ORGANS:
+        tree += build_organ_specific_subtree(organ, catalogue, 0)
+    content = _TEMPLATE_HTML_PAGE % (inventory, recipesHTML, tree)
     return content
 
 def main():

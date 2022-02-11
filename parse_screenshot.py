@@ -1,6 +1,7 @@
 from PIL import Image
 import cv2
 import numpy
+from PIL import ImageEnhance
 
 def most_frequent(L):
     return max(set(L), key = L.count)
@@ -229,4 +230,5 @@ def create_icons(im, px, cols, lines):
             box = (topx, topy, botx, boty)
             # print("generated", x, y)
             crop = im.crop(box)
+
             crop.save("arch_icons/" + str(x) + str(y) + ".png", "png")
