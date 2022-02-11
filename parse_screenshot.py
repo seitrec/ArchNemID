@@ -1,4 +1,88 @@
 from PIL import Image
+import cv2
+import numpy
+
+def most_frequent(L):
+    return max(set(L), key = L.count)
+
+def trim_picked(picked):
+    i,j=0, len(picked)-1
+    while picked[i+1] == picked[i]+1 and i != len(picked)-1:
+        i=i+1
+    while picked[j-1] == picked[j]-1 and j != 1:
+        j=j-1
+
+    return picked[i:j+1]
+
+def clean_col(picked):
+    # pick the last element of the trim, and add 1 (last line is not a double line)
+    cleaned = [picked[-1]+1]
+    # remove dupes (double pixel columns)
+    for index, coord in enumerate(picked[:-1]):
+        if picked[index + 1] != coord + 1:
+            # offset coord by 1, lines are always picked up on the box end and we want the next start
+            cleaned = [coord+1] + cleaned
+
+    return sorted(cleaned)
+
+def clean_lin(picked):
+    # pick the last element of the trim, and add 1 (last line is not a double line)
+    cleaned = [picked[-1]+1]
+    # remove dupes (double pixel columns)
+    for index, coord in enumerate(picked[:-1]):
+        # no need to offset here, lines are always picked on the start of newbox
+        if picked[index + 1] != coord + 1:
+            cleaned = [coord] + cleaned
+
+    return sorted(cleaned)
+
+def get_grid_from_mask():
+    img = cv2.imread('arch.png')
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    lower_blue = numpy.array([110, 0, 20])
+    upper_blue = numpy.array([130, 255, 40])
+
+    mask = cv2.inRange(hsv, lower_blue, upper_blue)
+    res = cv2.bitwise_and(img,img, mask=mask)
+
+    height, width = img.shape[:2]
+
+    # cv2.imshow('frame',img)
+    # cv2.imshow('mask',mask)
+    # cv2.imshow('res',res)
+    pick_lin = []
+    for x in range(height):
+        if sum(mask[x,y] for y in range(width))/width < 2:
+            pick_lin += [x]
+    # add last line slightly forcing
+    pick_lin_diff = [pick_lin[i+1] - pick_lin[i] for i in range(len(pick_lin)-1)]
+    pick_lin = pick_lin + [pick_lin[-1] + most_frequent(pick_lin_diff)]
+
+    pick_col = []
+    for y in range(width):
+        if sum(mask[x,y] for x in range(height))/height < 2:
+            pick_col += [y]
+    pick_col_diff = [pick_col[i+1] - pick_col[i] for i in range(len(pick_col)-1)]
+    pick_col = [pick_col[0] - most_frequent(pick_col_diff)]+ pick_col
+
+    print("Pick cols: ", pick_col)
+    print("Pick lines: ", pick_lin)
+
+    trimmed_col = trim_picked(pick_col)
+    trimmed_lin = trim_picked(pick_lin)
+
+    print("Trim cols: ", trimmed_col)
+    print("Trim lines: ", trimmed_lin)
+
+    cleaned_col = clean_col(trimmed_col)
+    cleaned_lin = clean_lin(trimmed_lin)
+
+    print("New cols: ", cleaned_col)
+    print("New lines: ", cleaned_lin)
+
+    # cv2.waitKey(0)
+    return cleaned_col, cleaned_lin
 
 def px_stddev(px1, px2):
     r1,g1,b1, _ = px1
@@ -70,68 +154,9 @@ def search_y(im, px):
     # print(candidates1, candidates2)
     return candidates1[0], candidates2[-1]
 
-def get_dispersion_col(avg, px, x):
-    # print(sorted([px_stddev(avg, px[x, y + 100]) for y in range(300)])[-3:])
-    return int(sum(sorted([px_stddev(avg, px[x, y + 100]) for y in range(300)])[-1:]))
-
-def search_x_expe(im, px):
-    columns_dispersions = []
-    picked = []
-    for x in range(im.size[0]):
-        rs, gs, bs = [],[],[]
-        for y in range(300):
-            y_cursor = y + 100
-            rs.append(px[x, y_cursor][0])
-            gs.append(px[x, y_cursor][1])
-            bs.append(px[x, y_cursor][2])
-        avg = (sum(r for r in rs)/len(rs), sum(r for r in gs)/len(gs), sum(r for r in bs)/len(bs), 0)
-        columns_dispersions.append(get_dispersion_col(avg, px, x))
-    for index, col in enumerate(columns_dispersions):
-        if col < 400 and col > 100:
-            print(index, col)
-            picked.append(index)
-    clean_picked = []
-    print(picked)
-    for i,p in enumerate(picked):
-        if i == len(picked)-1:
-            clean_picked.append(p)
-        elif p+1 != picked[i+1]:
-            clean_picked.append(p)
-    print(clean_picked)
-    return clean_picked
-
-def get_dispersion_lin(avg, px, y):
-    # print(sorted([px_stddev(avg, px[x, y + 100]) for y in range(300)])[-3:])
-    return int(sum(sorted([px_stddev(avg, px[x+100, y]) for x in range(300)])[-1:]))
-
-def search_y_expe(im, px):
-    lines_dispersions = []
-    picked = []
-    for y in range(im.size[1]):
-        rs, gs, bs = [],[],[]
-        for x in range(300):
-            x_cursor = x + 100
-            rs.append(px[x_cursor, y][0])
-            gs.append(px[x_cursor, y][1])
-            bs.append(px[x_cursor, y][2])
-        avg = (sum(r for r in rs)/len(rs), sum(r for r in gs)/len(gs), sum(r for r in bs)/len(bs), 0)
-        lines_dispersions.append(get_dispersion_lin(avg, px, y))
-    for index, lin in enumerate(lines_dispersions):
-        if lin < 1000 and lin > 100:
-            print(index, lin)
-            picked.append(index)
-    clean_picked = []
-    for i,p in enumerate(picked):
-        if i == len(picked)-1:
-            clean_picked.append(p)
-        elif p+1 != picked[i+1]:
-            clean_picked.append(p)
-    print(clean_picked)
-    return clean_picked
-
 def get_grid_coords(im, px):
-    search_x_expe(im, px)
-    search_y_expe(im, px)
+    # search_x_expe(im, px)
+    # search_y_expe(im, px)
     baseX, endX = search_x(im, px)
     baseY, endY = search_y(im, px)
 

@@ -1,6 +1,6 @@
 from PIL import Image
 import collections
-from parse_screenshot import get_grid_coords, create_icons
+from parse_screenshot import get_grid_coords, create_icons, get_grid_from_mask
 
 _TEMPLATE_HTML_PAGE = """<!doctype html>
 <html lang="en">
@@ -177,7 +177,7 @@ CONST_TIER_COLORS = {
 }
 def process_refs_values():
     refs_values = {}
-    for ref_name in CONST_COMPONENTS | CONST_RECIPES:
+    for ref_name in CONST_COMPONENTS | CONST_RECIPES | {"Empty":"whatevs"}:
         try:
             refs_values[ref_name] = Image.open(f"refs/ref{ref_name}.png").histogram()
         except FileNotFoundError:
@@ -196,7 +196,7 @@ def distance(a, b):
 def run_query(query, refs_values):
     best_dist = float("inf")
     best_idx = -1
-    for ref_name in CONST_COMPONENTS | CONST_RECIPES:
+    for ref_name in CONST_COMPONENTS | CONST_RECIPES | {"Empty":"whatevs"}:
         if ref_name not in refs_values:
             # print(ref_name, "has no reference")
             continue
@@ -213,20 +213,23 @@ def run_query(query, refs_values):
 # the catalogue is a counter of what we have
 def build_catalogue(refs_values):
     catalogue = collections.Counter()
-
+    debug_grid = []
     for x in range(8):
+        debug_line = []
         for y in range(8):
             test_id=str(x) + str(y)
             try:
                 query = Image.open(f"arch_icons/{test_id}.png").histogram()
                 # print(f"processing {test_id}")
                 organ = run_query(query, refs_values)
+                debug_line.append(organ)
                 if organ != "Empty":
                     catalogue[organ] += 1
             except FileNotFoundError:
                 print("ERROR GRID ELEMENT NOT FOUND")
+        debug_grid.append(debug_line)
 
-    return catalogue
+    return catalogue, debug_grid
 
 def build_and_write_html_result(catalogue):
     # for name, recipe in CONST_RECIPES.items():
@@ -283,12 +286,15 @@ def build_and_write_html_result(catalogue):
 def main():
     im = Image.open("arch.png")
     px=im.load()
-    cols, lines = get_grid_coords(im, px)
+    # cols, lines = get_grid_coords(im, px)
+    cols, lines = get_grid_from_mask()
     create_icons(im, px, cols, lines)
 
     refs_values = process_refs_values()
-    catalogue = build_catalogue(refs_values)
+    catalogue, debug_grid = build_catalogue(refs_values)
     content = build_and_write_html_result(catalogue)
+    for line in debug_grid:
+        print(line)
     with open("ArchnemCatalogue.html", 'w') as file:
         file.write(content)
 
