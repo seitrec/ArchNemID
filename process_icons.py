@@ -105,7 +105,7 @@ CONST_BIG_TICKET_ORGANS = [
 "Brine King-touched",
 "Tukohama-touched",
 "Innocence-touched",
-"Kitava-touched"
+"Kitava-touched",
 "Lunaris-touched",
 "Solaris-touched",
 "Arakaali-touched",
