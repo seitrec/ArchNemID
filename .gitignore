@@ -1,4 +1,5 @@
 ArchnemCatalogue.html
 .DS_Store
-arch_icons/*
 arch.png
+arch_icons/*
+!arch_icons/.gitkeep 
