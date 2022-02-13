@@ -28,7 +28,6 @@ def create_grid_descriptor(coords, id):
 		lin = y*(px_size+1)+1
 		for i in range(px_size):
 			for j in range(px_size):
-				print(i,j)
 				px[col+i, lin+j] = (255, 0, 0, 255)
 
 	grid.save("arch_grids/" + str(id) + ".png", "png")

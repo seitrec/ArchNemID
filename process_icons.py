@@ -395,15 +395,15 @@ def build_and_write_html_result(catalogue):
         compos = ""
         for name in recipe:
             if name in catalogue:
-                compos += _TEMPLATE_HTML_OWNED % (len(catalogue[name]), name)
+                compos += _TEMPLATE_HTML_OWNED % (len(catalogue[name]), name) + "<br/>"
             else:
-                compos += _TEMPLATE_HTML_NOT_OWNED % (0, name)
+                compos += _TEMPLATE_HTML_NOT_OWNED % (0, name) + "<br/>"
 
         products = ""
         for name, sub_recipe in CONST_RECIPES.items():
             if crafted in sub_recipe:
                 name_count = len(catalogue[name]) if name in catalogue else 0
-                products += _TEMPLATE_HTML_CUSTOM_COLOR % (CONST_TIER_COLORS[CONST_RECIPES_TIERS[name]],name_count, name)
+                products += _TEMPLATE_HTML_CUSTOM_COLOR % (CONST_TIER_COLORS[CONST_RECIPES_TIERS[name]],name_count, name) + "<br/>"
 
         line = ""
         crafted_count = len(catalogue[crafted]) if crafted in catalogue else 0
@@ -425,10 +425,11 @@ def build_and_write_html_result(catalogue):
 
     goals = ""
     for organ in CONST_GOALS_ORGANS:
-        if catalogue[organ] > 0:
-            badge = _TEMPLATE_HTML_SIMPLE_COUNT_SOME % catalogue[organ]
+        organ_count = len(catalogue[organ]) if organ in catalogue else 0
+        if organ_count > 0:
+            badge = _TEMPLATE_HTML_SIMPLE_COUNT_SOME % organ_count
         else:
-            badge = _TEMPLATE_HTML_SIMPLE_COUNT_NONE % catalogue[organ]
+            badge = _TEMPLATE_HTML_SIMPLE_COUNT_NONE % organ_count
 
         if set(CONST_RECIPES[organ]).issubset(set(catalogue.keys())):
             display_organ = _TEMPLATE_HTML_CRAFTABLE % (badge, organ)
