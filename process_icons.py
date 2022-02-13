@@ -1,6 +1,7 @@
 from PIL import Image
 import collections
 from parse_screenshot import get_grid_coords, create_icons, get_grid_from_mask
+from create_grid_images import create_grid_descriptor, recipe_to_coords
 
 _TEMPLATE_HTML_PAGE = """<!doctype html>
 <html lang="en">
@@ -70,13 +71,36 @@ _TEMPLATE_HTML_CUSTOM_COLOR = """
 
 _TEMPLATE_HTML_RECIPE_OK = """
 <div class="alert alert-success" role="alert">
-  %s: %s
+    <div class="row">
+        <div class="col-3">
+            %s
+        </div>
+        <div class="col-3">
+            %s
+        </div>
+        <div class="col-3">
+            %s
+        </div>
+        <div class="col-3">
+          <img src="arch_grids/%d.png">
+        </div>
+    </div>
 </div>
 """
 
 _TEMPLATE_HTML_RECIPE_KO = """
 <div class="alert alert-warning" role="alert">
-  %s: %s
+    <div class="row">
+        <div class="col-3">
+            %s
+        </div>
+        <div class="col-3">
+            %s
+        </div>
+        <div class="col-3">
+            %s
+        </div>
+    </div>
 </div>
 """
 
@@ -264,7 +288,7 @@ def run_query(query, refs_values):
 
 # the catalogue is a counter of what we have
 def build_catalogue(refs_values):
-    catalogue = collections.Counter()
+    catalogue = {}
     debug_grid = [[],[],[],[],[],[],[],[]]
     for x in range(8):
         debug_line = []
@@ -276,7 +300,10 @@ def build_catalogue(refs_values):
                 organ = run_query(query, refs_values)
                 debug_line.append(organ)
                 if organ != "Empty":
-                    catalogue[organ] += 1
+                    if organ in catalogue:
+                        catalogue[organ] += [(x,y)]
+                    else:
+                        catalogue[organ] = [(x,y)]
             except FileNotFoundError:
                 print("ERROR GRID ELEMENT NOT FOUND")
         for z in range(8):
@@ -285,11 +312,12 @@ def build_catalogue(refs_values):
     return catalogue, debug_grid
 
 def build_organ_specific_subtree(organ, catalogue, offset):
+    organ_count = len(catalogue[organ]) if organ in catalogue else 0
     if organ in CONST_RECIPES:
-        if catalogue[organ] > 0:
-            badge = _TEMPLATE_HTML_SIMPLE_COUNT_SOME % catalogue[organ]
+        if organ in catalogue:
+            badge = _TEMPLATE_HTML_SIMPLE_COUNT_SOME % organ_count
         else:
-            badge = _TEMPLATE_HTML_SIMPLE_COUNT_NONE % catalogue[organ]
+            badge = _TEMPLATE_HTML_SIMPLE_COUNT_NONE % organ_count
 
         if set(CONST_RECIPES[organ]).issubset(set(catalogue.keys())):
             display_organ = _TEMPLATE_HTML_CRAFTABLE % (badge, organ)
@@ -297,7 +325,7 @@ def build_organ_specific_subtree(organ, catalogue, offset):
             display_organ = _TEMPLATE_HTML_NOT_CRAFTABLE % (badge, organ)
     else:
         if organ in catalogue:
-            display_organ = _TEMPLATE_HTML_OWNED % (catalogue[organ], organ)
+            display_organ = _TEMPLATE_HTML_OWNED % (organ_count, organ)
         else:
             display_organ = _TEMPLATE_HTML_NOT_OWNED % (0, organ)
     
@@ -318,7 +346,7 @@ def build_and_write_html_result(catalogue):
     droppable = ""
     for name in (CONST_COMPONENTS):
         if name in catalogue:
-            droppable += _TEMPLATE_HTML_OWNED % (catalogue[name], name)
+            droppable += _TEMPLATE_HTML_OWNED % (len(catalogue[name]), name)
         else:
             droppable += _TEMPLATE_HTML_NOT_OWNED % (0, name)
 
@@ -326,36 +354,40 @@ def build_and_write_html_result(catalogue):
     crafted = ""
     for name in (CONST_RECIPES):
         if name in catalogue:
-            crafted += _TEMPLATE_HTML_OWNED % (catalogue[name], name)
+            crafted += _TEMPLATE_HTML_OWNED % (len(catalogue[name]), name)
         else:
             crafted += _TEMPLATE_HTML_NOT_OWNED % (0, name)
 
     inventory = _TEMPLATE_HTML_INVENTORY % (droppable, crafted)
-
+    grid_id = 0
     recipesHTML = ""
     for crafted, recipe in CONST_RECIPES.items():
         compos = ""
         for name in recipe:
             if name in catalogue:
-                compos += _TEMPLATE_HTML_OWNED % (catalogue[name], name)
+                compos += _TEMPLATE_HTML_OWNED % (len(catalogue[name]), name)
             else:
                 compos += _TEMPLATE_HTML_NOT_OWNED % (0, name)
 
         products = ""
         for name, sub_recipe in CONST_RECIPES.items():
             if crafted in sub_recipe:
-                products += _TEMPLATE_HTML_CUSTOM_COLOR % (CONST_TIER_COLORS[CONST_RECIPES_TIERS[name]],catalogue[name], name)
+                name_count = len(catalogue[name]) if name in catalogue else 0
+                products += _TEMPLATE_HTML_CUSTOM_COLOR % (CONST_TIER_COLORS[CONST_RECIPES_TIERS[name]],name_count, name)
 
         line = ""
-        if catalogue[crafted] > 0:
-            line = _TEMPLATE_HTML_SIMPLE_COUNT_SOME % catalogue[crafted] + crafted
+        crafted_count = len(catalogue[crafted]) if crafted in catalogue else 0
+        if crafted in catalogue:
+            line = _TEMPLATE_HTML_SIMPLE_COUNT_SOME % crafted_count + crafted
         else:
-            line = _TEMPLATE_HTML_SIMPLE_COUNT_NONE % catalogue[crafted] + crafted
+            line = _TEMPLATE_HTML_SIMPLE_COUNT_NONE % crafted_count + crafted
         if set(recipe).issubset(set(catalogue.keys())):
-            recipesHTML = _TEMPLATE_HTML_RECIPE_OK % (line, compos + " | " + products) + recipesHTML
+            create_grid_descriptor(recipe_to_coords(recipe, catalogue), grid_id)
+            recipesHTML = _TEMPLATE_HTML_RECIPE_OK % (line, compos, products, grid_id) + recipesHTML
+            grid_id += 1
         else:
 
-            recipesHTML = recipesHTML + _TEMPLATE_HTML_RECIPE_KO % (line, compos + " | " + products)
+            recipesHTML = recipesHTML + _TEMPLATE_HTML_RECIPE_KO % (line, compos, products)
 
     tree = ""
     for organ in CONST_BIG_TICKET_ORGANS:
@@ -364,6 +396,7 @@ def build_and_write_html_result(catalogue):
     return content
 
 def main():
+    create_grid_descriptor([(1,3), (5,6)], 1)
     im = Image.open("arch.png")
     px=im.load()
     # cols, lines = get_grid_coords(im, px)
