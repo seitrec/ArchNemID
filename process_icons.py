@@ -1,6 +1,9 @@
-from PIL import Image
+from PIL import Image, ImageGrab
 import collections
 from parse_screenshot import get_grid_coords, create_icons, get_grid_from_mask
+import win32gui
+import time
+import keyboard
 from create_grid_images import create_grid_descriptor, recipe_to_coords
 
 _TEMPLATE_HTML_PAGE = """<!doctype html>
@@ -9,6 +12,7 @@ _TEMPLATE_HTML_PAGE = """<!doctype html>
     <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta http-equiv="refresh" content="10">
 
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
@@ -16,15 +20,15 @@ _TEMPLATE_HTML_PAGE = """<!doctype html>
     <title>ArchNem Organs</title>
   </head>
   <body>
-    <div class="row">
-        <div class="col-10 offset-1">
-        %s
+        <div class="row">
+          %s
         </div>
-    </div>
     <br/>
     <div class="row">
-        <div class="col-1"></div>
-        <div class="col-7">
+        <div class="col-1">
+          %s
+        </div>
+        <div class="col-7 offset-1">
           <h3>CRAFTS</h2>
           %s
         </div>
@@ -112,6 +116,13 @@ _TEMPLATE_HTML_SIMPLE_COUNT_NONE = """
 <span class="badge rounded-pill bg-danger" style="color:#FFFFFF">%d</span>
 """
 
+_TEMPLATE_HTML_GOAL_BASE = """
+<div class="col-4">
+%s <br/>
+%s
+</div>
+"""
+
 _TEMPLATE_HTML_TREE_BASE = """
 <div>
 %s
@@ -122,6 +133,12 @@ _TEMPLATE_HTML_TREE_NODE = """
     %s - %s <br/>
     %s
 """
+
+CONST_GOALS_ORGANS = [
+"Treant Horde",
+"Shakari-touched",
+"Brine King-touched",
+]
 
 CONST_BIG_TICKET_ORGANS = [
 "Treant Horde",
@@ -328,15 +345,28 @@ def build_organ_specific_subtree(organ, catalogue, offset):
             display_organ = _TEMPLATE_HTML_OWNED % (organ_count, organ)
         else:
             display_organ = _TEMPLATE_HTML_NOT_OWNED % (0, organ)
-    
-    if organ not in CONST_RECIPES:
         return _TEMPLATE_HTML_TREE_NODE % (offset*"&nbsp;"*10, display_organ, "")
+        
     subs = ""
     for sub_organ in CONST_RECIPES[organ]:
         subs += build_organ_specific_subtree(sub_organ, catalogue, offset+1)
     
 
     return _TEMPLATE_HTML_TREE_NODE % (offset*"&nbsp;"*10, display_organ, subs)
+
+def build_goal_missing_organs(organ, catalogue):
+    display = ""
+    if organ in CONST_COMPONENTS:
+        if organ not in catalogue:
+            return _TEMPLATE_HTML_NOT_OWNED % (0, organ) +  "<br/>"
+    
+    if organ not in catalogue:
+        for sub_organ in CONST_RECIPES[organ]:
+            display += build_goal_missing_organs(sub_organ, catalogue)
+    
+
+    return display
+
 
 def build_and_write_html_result(catalogue):
     # for name, recipe in CONST_RECIPES.items():
@@ -392,24 +422,66 @@ def build_and_write_html_result(catalogue):
     tree = ""
     for organ in CONST_BIG_TICKET_ORGANS:
         tree += build_organ_specific_subtree(organ, catalogue, 0)
-    content = _TEMPLATE_HTML_PAGE % (inventory, recipesHTML, tree)
+
+    goals = ""
+    for organ in CONST_GOALS_ORGANS:
+        if catalogue[organ] > 0:
+            badge = _TEMPLATE_HTML_SIMPLE_COUNT_SOME % catalogue[organ]
+        else:
+            badge = _TEMPLATE_HTML_SIMPLE_COUNT_NONE % catalogue[organ]
+
+        if set(CONST_RECIPES[organ]).issubset(set(catalogue.keys())):
+            display_organ = _TEMPLATE_HTML_CRAFTABLE % (badge, organ)
+        else:
+            display_organ = _TEMPLATE_HTML_NOT_CRAFTABLE % (badge, organ)
+        goals += _TEMPLATE_HTML_GOAL_BASE % (display_organ, build_goal_missing_organs(organ, catalogue))
+
+    content = _TEMPLATE_HTML_PAGE % (goals, inventory, recipesHTML, tree)
     return content
 
-def main():
-    create_grid_descriptor([(1,3), (5,6)], 1)
-    im = Image.open("arch.png")
-    px=im.load()
-    # cols, lines = get_grid_coords(im, px)
-    cols, lines = get_grid_from_mask()
-    create_icons(im, px, cols, lines)
 
-    refs_values = process_refs_values()
-    catalogue, debug_grid = build_catalogue(refs_values)
-    content = build_and_write_html_result(catalogue)
-    for line in debug_grid:
-        print(line)
-    with open("ArchnemCatalogue.html", 'w') as file:
-        file.write(content)
+
+def save_screenshot():
+    toplist, winlist = [], []
+    def enum_cb(hwnd, results):
+        winlist.append((hwnd, win32gui.GetWindowText(hwnd)))
+    win32gui.EnumWindows(enum_cb, toplist)
+
+    poe = [(hwnd, title) for hwnd, title in winlist if 'exile' in title.lower()]
+    # just grab the hwnd for first window matching firefox
+    poe = poe[0]
+    hwnd = poe[0]
+
+    win32gui.SetForegroundWindow(hwnd)
+    bbox = win32gui.GetWindowRect(hwnd)
+    im = ImageGrab.grab(bbox)
+    box = (100 , 300, 540, 770)
+    crop = im.crop(box)
+    crop.save("arch.png", "png")
+
+
+
+
+
+def main():
+    while True:
+        # wait = 0
+        save_screenshot()
+        im = Image.open("arch.png")
+        px=im.load()
+        # cols, lines = get_grid_coords(im, px)
+        cols, lines = get_grid_from_mask()
+        create_icons(im, px, cols, lines)
+
+        refs_values = process_refs_values()
+        catalogue, debug_grid = build_catalogue(refs_values)
+        content = build_and_write_html_result(catalogue)
+        for line in debug_grid:
+            print(line)
+        with open("ArchnemCatalogue.html", 'w') as file:
+            file.write(content)
+        keyboard.wait("F2")
+        time.sleep(0.2)
 
 main()
 
