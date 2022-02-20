@@ -214,6 +214,9 @@ def save_screenshot():
     poe = poe[0]
     hwnd = poe[0]
 
+    if user_params._USER_GAME_WINDOW is not None:
+        win32gui.MoveWindow(hwnd, *user_params._USER_GAME_WINDOW, True)
+
     win32gui.SetForegroundWindow(hwnd)
     bbox = win32gui.GetWindowRect(hwnd)
     im = ImageGrab.grab(bbox)
