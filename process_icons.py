@@ -2,6 +2,7 @@ from PIL import Image, ImageGrab
 import collections
 from parse_screenshot import create_icons, get_grid_from_mask
 import win32gui
+import win32process
 import time
 import keyboard
 from create_grid_images import create_grid_descriptor, recipe_to_coords
@@ -206,7 +207,11 @@ def build_and_write_html_result(catalogue):
 def save_screenshot():
     toplist, winlist = [], []
     def enum_cb(hwnd, results):
-        winlist.append((hwnd, win32gui.GetWindowText(hwnd)))
+        tid = win32process.GetWindowThreadProcessId(hwnd)
+        # Ignore the windows created by us
+        if tid[1] != win32process.GetCurrentProcessId():
+            val = win32gui.GetWindowText(hwnd)
+            winlist.append((hwnd, val))
     win32gui.EnumWindows(enum_cb, toplist)
 
     poe = [(hwnd, title) for hwnd, title in winlist if 'exile' in title.lower()]
@@ -224,10 +229,6 @@ def save_screenshot():
     crop = im.crop(box)
     crop.save("arch.png", "png")
 
-
-
-
-
 def main():
     catalogue = {}
 
@@ -243,21 +244,28 @@ def main():
             user_params._USER_GRID_LEFT +2, user_params._USER_GRID_TOP +2, user_params._USER_GRID_WIDTH, user_params._USER_GRID_HEIGHT
         )
     while True:
-        # wait = 0
-        save_screenshot()
-        im = Image.open("arch.png")
-        px=im.load()
-        cols, lines = get_grid_from_mask()
-        create_icons(im, px, cols, lines)
+        try:
+            save_screenshot()
+            im = Image.open("arch.png")
+            px=im.load()
+            cols, lines = get_grid_from_mask()
+            create_icons(im, px, cols, lines)
 
-        refs_values = process_refs_values()
-        catalogue, debug_grid = build_catalogue(refs_values)
-        content = build_and_write_html_result(catalogue)
-        for line in debug_grid:
-            print(line)
-        with open("ArchnemCatalogue.html", 'w') as file:
-            file.write(content)
-        reset_overlay_recipe()
+            refs_values = process_refs_values()
+            catalogue, debug_grid = build_catalogue(refs_values)
+            content = build_and_write_html_result(catalogue)
+            for line in debug_grid:
+                print(line)
+            with open("ArchnemCatalogue.html", 'w') as file:
+                file.write(content)
+            reset_overlay_recipe()
+        except KeyboardInterrupt:
+            print("Closing due to ctrl+C")
+            return
+        except Exception as e:
+            print(f"Crashed with {e}")
+            print("Continuing...")
+
         keyboard.wait("F2")
         time.sleep(0.2)
 

@@ -1,5 +1,6 @@
 import collections
 import win32gui
+import win32process
 import win32con
 import keyboard
 import traceback
@@ -198,7 +199,11 @@ def get_hwnd_by_name(window_name: str):
     toplist, winlist = [], []
 
     def enum_cb(hwnd, results):
-        winlist.append((hwnd, win32gui.GetWindowText(hwnd)))
+        tid = win32process.GetWindowThreadProcessId(hwnd)
+        # Ignore the windows created by us
+        if tid[1] != win32process.GetCurrentProcessId():
+            val = win32gui.GetWindowText(hwnd)
+            winlist.append((hwnd, val))
     win32gui.EnumWindows(enum_cb, toplist)
 
     window_name = window_name.lower()
@@ -251,7 +256,6 @@ def show_overlay_window(target_window_name: str, boxes: list, trash_boxes: list,
         boxes,
         trash_boxes,
         text)
-
 
 def update_overlay_window(hwnd, left, top, width, height, boxes, trash_boxes, text):
     screen_dc = win32gui.GetDC(0)
