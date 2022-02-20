@@ -9,8 +9,7 @@ def recipe_to_coords(recipe, catalogue):
 	return coords
 
 
-def create_grid_descriptor(coords, id):
-	px_size = 16
+def create_grid_descriptor(coords, id, px_size=8, colored_px=(0, 255, 0, 255)):
 	img_size = 8*(px_size+1)+1
 	grid = Image.new(mode="RGB", size=(img_size, img_size))
 	px=grid.load()
@@ -28,7 +27,7 @@ def create_grid_descriptor(coords, id):
 		lin = y*(px_size+1)+1
 		for i in range(px_size):
 			for j in range(px_size):
-				px[col+i, lin+j] = (255, 0, 0, 255)
+				px[col+i, lin+j] = colored_px
 
 	grid.save("arch_grids/" + str(id) + ".png", "png")
 
