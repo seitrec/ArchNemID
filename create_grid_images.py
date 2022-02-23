@@ -1,11 +1,17 @@
 from PIL import Image
 
 
-def recipe_to_coords(recipe, catalogue):
+def recipe_to_coords(recipe, catalogue, ignore_list=[]):
 	coords = []
 	for compo in recipe:
 		if compo in catalogue:
-			coords += [catalogue[compo][0]]
+			trycoords = []
+			for c in catalogue[compo]:
+				if not c in ignore_list:
+					trycoords = c
+					break
+				trycoords = catalogue[compo][-1]
+			coords += [trycoords]
 	return coords
 
 

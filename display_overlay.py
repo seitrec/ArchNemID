@@ -1,22 +1,25 @@
 import collections
 import win32gui
-import win32process
 import win32con
+import win32process
 import keyboard
 import traceback
 import win32api
 from create_grid_images import recipe_to_coords
+import user_params
 
-from constants import CONST_RECIPES
+from constants import CONST_RECIPES_OVERLAY, CONST_RECIPES
 
 ITEM_BOX_INNER_BORDER_WIDTH = 4
 TRASH_BOX_COLOR = win32api.RGB(255, 0, 0)
 ITEM_BOX_COLOR = win32api.RGB(0, 246, 222)
+ITEM_TEXT_BG = win32api.RGB(72, 72, 72)
 TEXT_HEIGHT = 20
 
 COLOR_KEY = win32api.RGB(0, 255, 0)
 
-ORDERED_RECIPES = list(collections.OrderedDict(CONST_RECIPES).items())
+# ORDERED_RECIPES = list(collections.OrderedDict(CONST_RECIPES_OVERLAY).items())
+ORDERED_RECIPES = [(item, CONST_RECIPES[item]) for item in CONST_RECIPES_OVERLAY]
 
 # Item boxes are (left, top, right, bottom) coordinates
 
@@ -178,14 +181,23 @@ def toggle_overlay(target_window_name: str, catalog: dict, grid_x_offset: int, g
 def display_overlay(target_window_name: str, recipes: dict, catalog: dict, recipe_idx: int, grid_x_offset: int, grid_y_offset: int, grid_width: int, grid_height: int, show_overlay: bool):
     try:
         if show_overlay:
-            text, boxes, trash_boxes = prepare_items_to_draw(
-                grid_x_offset,
-                grid_y_offset,
-                grid_width,
-                grid_height,
-                recipes,
-                catalog,
-                recipe_idx)
+            if user_params._USER_OVERLAY_ALL_IN_ONE:
+                text, boxes, trash_boxes = prepare_items_to_draw_stacked(
+                    grid_x_offset,
+                    grid_y_offset,
+                    grid_width,
+                    grid_height,
+                    recipes,
+                    catalog)
+            else: 
+                text, boxes, trash_boxes = prepare_items_to_draw(
+                    grid_x_offset,
+                    grid_y_offset,
+                    grid_width,
+                    grid_height,
+                    recipes,
+                    catalog,
+                    recipe_idx)
             show_overlay_window(target_window_name, boxes, trash_boxes, text)
         else:
             hide_overlay_window()
@@ -257,6 +269,7 @@ def show_overlay_window(target_window_name: str, boxes: list, trash_boxes: list,
         trash_boxes,
         text)
 
+
 def update_overlay_window(hwnd, left, top, width, height, boxes, trash_boxes, text):
     screen_dc = win32gui.GetDC(0)
     content_dc = win32gui.CreateCompatibleDC(screen_dc)
@@ -272,25 +285,33 @@ def update_overlay_window(hwnd, left, top, width, height, boxes, trash_boxes, te
     # ----- BEGIN TRASH DRAWING ------
     #
     # Draw objects in the DC.
-    color_brush = win32gui.CreateSolidBrush(TRASH_BOX_COLOR)
-    for box in trash_boxes:
-        draw_item_box(content_dc, box, color_brush, color_key_brush)
+    for trash_tup in trash_boxes:
+        color_brush = win32gui.CreateSolidBrush(trash_tup[1])
+        for box in trash_tup[0]:
+            draw_item_box(content_dc, box, color_brush, color_key_brush)
     #
     # ------ END TRASH DRAWING -------
     #
+    if len(boxes) != 0 and isinstance(boxes[0][0], int):
+        #
+        # ----- BEGIN CONTENT DRAWING ------
+        #
+        # Draw objects in the DC.
+        color_brush = win32gui.CreateSolidBrush(ITEM_BOX_COLOR)
+        for box in boxes:
+            draw_item_box(content_dc, box, color_brush, color_key_brush)
+        draw_text(content_dc, text)
+        #
+        # ------ END CONTENT DRAWING -------
+        #
+    if len(boxes) != 0 and isinstance(boxes[0][0], list):
+        for stack_tup in boxes:
+            color_brush = win32gui.CreateSolidBrush(stack_tup[1])
+            for box in stack_tup[0]:
+                draw_item_box(content_dc, box, color_brush, color_key_brush)
+            draw_text(content_dc, stack_tup[2], stack_tup[1])
 
-    #
-    # ----- BEGIN CONTENT DRAWING ------
-    #
-    # Draw objects in the DC.
-    color_brush = win32gui.CreateSolidBrush(ITEM_BOX_COLOR)
-    for box in boxes:
-        draw_item_box(content_dc, box, color_brush, color_key_brush)
     draw_text(content_dc, text)
-    #
-    # ------ END CONTENT DRAWING -------
-    #
-
 
 
 
@@ -313,12 +334,13 @@ def draw_item_box(dc, box, color_brush, color_key_brush):
                       color_key_brush)
 
 
-def draw_text(dc, text):
+def draw_text(dc, text, color=ITEM_BOX_COLOR):
     if text is None:
         return
 
     string_to_write, rect = text
-    win32gui.SetTextColor(dc, ITEM_BOX_COLOR)
+    win32gui.SetTextColor(dc, color)
+    win32gui.SetBkColor(dc, ITEM_TEXT_BG)
     win32gui.DrawText(
         dc,
         string_to_write,
@@ -334,6 +356,55 @@ def hide_overlay_window():
         win32gui.ShowWindow(global_overlay_hwnd, win32con.SW_HIDE)
 
 
+def prepare_items_to_draw_stacked(offset_left: int, offset_top: int, width: int, height: int, recipes: dict, catalog: dict):
+    trash_boxes = []
+    stacked_boxes = []
+
+    item_box_width = width / 8 
+    item_box_height = height / 8
+
+    trash_shades = [win32api.RGB(255,0,0), win32api.RGB(255,160,122), win32api.RGB(240,128,128), win32api.RGB(250,128,114), win32api.RGB(233,150,122), win32api.RGB(255,99,71), win32api.RGB(205,92,92), win32api.RGB(255,69,0)]
+    trash_counter = 0
+    for organ in catalog:
+        if len(catalog[organ]) > 2:
+            trash_boxes += [([(
+                int(offset_left + j * item_box_width),
+                int(offset_top + i * item_box_height),
+                int(offset_left + (j + 1) * item_box_width),
+                int(offset_top + (i + 1) * item_box_height)
+                ) for (j, i) in catalog[organ]], trash_shades[trash_counter % len(trash_shades)] )]
+            trash_counter += 1
+
+    
+    stacked_shades = [win32api.RGB(60, 180, 75), win32api.RGB(255, 225, 25), win32api.RGB(0, 130, 200), win32api.RGB(145, 30, 180), win32api.RGB(70, 240, 240), win32api.RGB(240, 50, 230), win32api.RGB(210, 245, 60), win32api.RGB(0, 128, 128), win32api.RGB(220, 190, 255), win32api.RGB(170, 110, 40), win32api.RGB(255, 250, 200), win32api.RGB(170, 255, 195), win32api.RGB(128, 128, 0), win32api.RGB(255, 215, 180), win32api.RGB(0, 0, 128), win32api.RGB(128, 128, 128), win32api.RGB(255, 255, 255), win32api.RGB(0, 0, 0)]
+    stacked_counter = 0
+    ignore_list = []
+    for item in ORDERED_RECIPES:
+        target_craft, recipe = item
+        if is_recipe_feasible(item, catalog):
+            if target_craft in catalog:
+                target_craft = str(len(catalog[target_craft])) + " " + target_craft
+            else:
+                target_craft = "0 " + target_craft
+            organ_coords = recipe_to_coords(recipe, catalog, ignore_list)
+            ignore_list += organ_coords
+            text = (target_craft, (offset_left + width, offset_top + TEXT_HEIGHT*(stacked_counter),
+            offset_left + width + 300, offset_top + TEXT_HEIGHT*(stacked_counter+1)))
+            stacked_boxes += [([(
+                int(offset_left + j * item_box_width),
+                int(offset_top + i * item_box_height),
+                int(offset_left + (j + 1) * item_box_width),
+                int(offset_top + (i + 1) * item_box_height)
+            ) for (j, i) in organ_coords], stacked_shades[stacked_counter % len(stacked_shades)], text)]
+
+            stacked_counter += 1
+
+    text = ("OVERALL", (offset_left, offset_top + height,
+            offset_left + width, offset_top + height + TEXT_HEIGHT))
+
+    return text, stacked_boxes, trash_boxes
+
+
 def prepare_items_to_draw(offset_left: int, offset_top: int, width: int, height: int, recipes: dict, catalog: dict, recipe_idx: int):
     trash_boxes = []
 
@@ -341,13 +412,31 @@ def prepare_items_to_draw(offset_left: int, offset_top: int, width: int, height:
     item_box_height = height / 8
 
     # Always draw a box over the grid to help with calibration.
-    trash_boxes += [(offset_left, offset_top, offset_left +
-               width, offset_top + height)]
+    # trash_boxes += [(offset_left, offset_top, offset_left +
+    #            width, offset_top + height)]
+
+    trash_boxes = []
+    trash_shades = [win32api.RGB(255,0,0), win32api.RGB(255,160,122), win32api.RGB(240,128,128), win32api.RGB(250,128,114), win32api.RGB(233,150,122), win32api.RGB(255,99,71), win32api.RGB(205,92,92), win32api.RGB(255,69,0)]
+    trash_counter = 0
+    for organ in catalog:
+        if len(catalog[organ]) > 2:
+            trash_boxes += [([(
+                int(offset_left + j * item_box_width),
+                int(offset_top + i * item_box_height),
+                int(offset_left + (j + 1) * item_box_width),
+                int(offset_top + (i + 1) * item_box_height)
+                ) for (j, i) in catalog[organ]], trash_shades[trash_counter % len(trash_shades)] )]
+            trash_counter += 1
+
 
     if recipe_idx is None:
-        return None, boxes
+        return None, [], trash_boxes
 
     target_craft, recipe = ORDERED_RECIPES[recipe_idx]
+    if target_craft in catalog:
+        target_craft = str(len(catalog[target_craft])) + " " + target_craft
+    else:
+        target_craft = "0 " + target_craft
     # Assume recipe is feasible.
     organ_coords = recipe_to_coords(recipe, catalog)
 
@@ -357,19 +446,6 @@ def prepare_items_to_draw(offset_left: int, offset_top: int, width: int, height:
         int(offset_left + (j + 1) * item_box_width),
         int(offset_top + (i + 1) * item_box_height)
     ) for (j, i) in organ_coords]
-
-    trash_coords = []
-    trash_organs = ""
-    for organ in catalog:
-        if len(catalog[organ]) > 2:
-            trash_coords += catalog[organ]
-
-    trash_boxes += [(
-        int(offset_left + j * item_box_width),
-        int(offset_top + i * item_box_height),
-        int(offset_left + (j + 1) * item_box_width),
-        int(offset_top + (i + 1) * item_box_height)
-    ) for (j, i) in trash_coords]
 
 
     text = (target_craft, (offset_left, offset_top + height,

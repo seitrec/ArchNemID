@@ -227,8 +227,40 @@ CONST_RECIPES = {
         "Abberath-touched": ["Flame Strider","Frenzied","Rejuvenating"],
         "Shakari-touched": ["Entangler","Soul Eater","Drought Bringer"],
         "Innocence-touched": ["Lunaris-touched","Solaris-touched","Mirror Image","Mana Siphoner"],
-        "Kitava-touched": ["Tukohama-touched","Abberath-touched","Corrupter","Corpse Detonator"]
+        "Kitava-touched": ["Tukohama-touched","Abberath-touched","Corrupter","Corpse Detonator"],
+        "Loot-Shower": ["Brine King-touched","Shakari-touched","Treant Horde","Evocationist"]
         }
+
+CONST_RECIPES_OVERLAY = [
+        "Loot-Shower",
+        "Kitava-touched",
+        "Innocence-touched",
+        "Shakari-touched",
+        "Brine King-touched",
+        "Abberath-touched",
+        "Tukohama-touched",
+        "Solaris-touched",
+        "Lunaris-touched",
+        "Treant Horde",
+        "Ice Prison",
+        "Necromancer",
+        "Heralding Minions",
+        "Soul Eater",
+        "Drought Bringer",
+        "Entangler",
+        "Storm Strider",
+        "Evocationist",
+        "Magma Barrier",
+        "Corpse Detonator",
+        "Rejuvenating",
+        "Empowering Minions",
+        "Executioner",
+        "Frost Strider",
+        "Flame Strider",
+        "Mana Siphoner",
+        "Corrupter",
+        "Invulnerable",
+        ]
 
 CONST_RECIPES_TIERS = {
         "Heralding Minions": 2,
@@ -267,6 +299,7 @@ CONST_RECIPES_TIERS = {
         "Shakari-touched": 4,
         "Innocence-touched": 4,
         "Kitava-touched": 4,
+        "Loot-Shower": 4,
         }
 
 CONST_TIER_COLORS = {

@@ -2,7 +2,6 @@ from PIL import Image, ImageGrab
 import collections
 from parse_screenshot import create_icons, get_grid_from_mask
 import win32gui
-import win32process
 import time
 import keyboard
 from create_grid_images import create_grid_descriptor, recipe_to_coords
