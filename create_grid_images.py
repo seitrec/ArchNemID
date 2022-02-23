@@ -10,7 +10,8 @@ def recipe_to_coords(recipe, catalogue, ignore_list=[]):
 				if not c in ignore_list:
 					trycoords = c
 					break
-				trycoords = catalogue[compo][-1]
+				# least prioritized recipe doesn't get the component if no more available
+				# trycoords = catalogue[compo][-1]
 			coords += [trycoords]
 	return coords
 
