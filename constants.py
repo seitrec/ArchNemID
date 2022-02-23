@@ -228,7 +228,7 @@ CONST_RECIPES = {
         "Shakari-touched": ["Entangler","Soul Eater","Drought Bringer"],
         "Innocence-touched": ["Lunaris-touched","Solaris-touched","Mirror Image","Mana Siphoner"],
         "Kitava-touched": ["Tukohama-touched","Abberath-touched","Corrupter","Corpse Detonator"],
-        "Loot-Shower": ["Brine King-touched","Shakari-touched","Treant Horde","Evocationist"]
+        "Loot-Shower": ["Brine King-touched","Shakari-touched","Treant Horde"]
         }
 
 CONST_RECIPES_OVERLAY = [
