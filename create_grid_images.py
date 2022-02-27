@@ -12,6 +12,7 @@ def recipe_to_coords(recipe, catalogue, ignore_list=[]):
 					break
 				# least prioritized recipe doesn't get the component if no more available
 				# trycoords = catalogue[compo][-1]
+				trycoords = (-1,-1)
 			coords += [trycoords]
 	return coords
 
@@ -37,4 +38,3 @@ def create_grid_descriptor(coords, id, px_size=8, colored_px=(0, 255, 0, 255)):
 				px[col+i, lin+j] = colored_px
 
 	grid.save("arch_grids/" + str(id) + ".png", "png")
-

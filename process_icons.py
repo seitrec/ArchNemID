@@ -8,7 +8,7 @@ import keyboard
 from create_grid_images import create_grid_descriptor, recipe_to_coords
 import constants
 import user_params
-from display_overlay import register_overlay_hot_keys, reset_feasible_recipes_and_update
+from display_overlay import register_overlay_hot_keys, reset_feasible_recipes_and_update, toggle_overlay
 
 def process_refs_values():
     refs_values = {}
@@ -235,13 +235,13 @@ def main():
     register_overlay_hot_keys(
         "exile",
         lambda: catalogue,
-        user_params._USER_GRID_LEFT +2 , user_params._USER_GRID_TOP +2, user_params._USER_GRID_WIDTH, user_params._USER_GRID_HEIGHT
+        user_params._USER_GRID_LEFT +5 , user_params._USER_GRID_TOP +4, user_params._USER_GRID_WIDTH-7, user_params._USER_GRID_HEIGHT-5
     )
     def reset_overlay_recipe():
         reset_feasible_recipes_and_update(
             "exile",
             catalogue,
-            user_params._USER_GRID_LEFT +2, user_params._USER_GRID_TOP +2, user_params._USER_GRID_WIDTH, user_params._USER_GRID_HEIGHT
+            user_params._USER_GRID_LEFT +5, user_params._USER_GRID_TOP +4, user_params._USER_GRID_WIDTH-7, user_params._USER_GRID_HEIGHT-5
         )
     while True:
         try:
@@ -271,5 +271,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-        
